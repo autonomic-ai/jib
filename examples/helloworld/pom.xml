@@ -52,18 +52,10 @@
         <artifactId>jib-maven-plugin</artifactId>
         <version>${jib-maven-plugin.version}</version>
         <configuration>
-          <to>
-            <image>gcr.io/REPLACE-WITH-YOUR-GCP-PROJECT/image-built-with-jib</image>
-          </to>
+          <from>
+            <image>gcr.io/distroless/java:debug</image>
+          </from>
         </configuration>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>build</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
