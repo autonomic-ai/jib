@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -30,149 +47,150 @@ import java.util.Set;
 /** Maven-specific adapter for providing raw configuration parameter values. */
 class MavenRawConfiguration implements RawConfiguration {
 
-  private final JibPluginConfiguration jibPluginConfiguration;
+    private final JibPluginConfiguration jibPluginConfiguration;
 
-  /**
-   * Creates a raw configuration instances.
-   *
-   * @param jibPluginConfiguration the Jib plugin configuration
-   */
-  MavenRawConfiguration(JibPluginConfiguration jibPluginConfiguration) {
-    this.jibPluginConfiguration = jibPluginConfiguration;
-  }
+    /**
+     * Creates a raw configuration instances.
+     *
+     * @param jibPluginConfiguration the Jib plugin configuration
+     */
+    MavenRawConfiguration(JibPluginConfiguration jibPluginConfiguration) {
+        this.jibPluginConfiguration = jibPluginConfiguration;
+    }
 
-  @Override
-  public Optional<String> getFromImage() {
-    return Optional.ofNullable(jibPluginConfiguration.getBaseImage());
-  }
+    @Override
+    public Optional<String> getFromImage() {
+        return Optional.ofNullable(jibPluginConfiguration.getBaseImage());
+    }
 
-  @Override
-  public AuthProperty getFromAuth() {
-    return jibPluginConfiguration.getBaseImageAuth();
-  }
+    @Override
+    public AuthProperty getFromAuth() {
+        return jibPluginConfiguration.getBaseImageAuth();
+    }
 
-  @Override
-  public Optional<String> getFromCredHelper() {
-    return Optional.ofNullable(jibPluginConfiguration.getBaseImageCredentialHelperName());
-  }
+    @Override
+    public Optional<String> getFromCredHelper() {
+        return Optional.ofNullable(jibPluginConfiguration.getBaseImageCredentialHelperName());
+    }
 
-  @Override
-  public Optional<String> getToImage() {
-    return Optional.ofNullable(jibPluginConfiguration.getTargetImage());
-  }
+    @Override
+    public Optional<String> getToImage() {
+        return Optional.ofNullable(jibPluginConfiguration.getTargetImage());
+    }
 
-  @Override
-  public AuthProperty getToAuth() {
-    return jibPluginConfiguration.getTargetImageAuth();
-  }
+    @Override
+    public AuthProperty getToAuth() {
+        return jibPluginConfiguration.getTargetImageAuth();
+    }
 
-  @Override
-  public Optional<String> getToCredHelper() {
-    return Optional.ofNullable(jibPluginConfiguration.getTargetImageCredentialHelperName());
-  }
+    @Override
+    public Optional<String> getToCredHelper() {
+        return Optional.ofNullable(jibPluginConfiguration.getTargetImageCredentialHelperName());
+    }
 
-  @Override
-  public Set<String> getToTags() {
-    return jibPluginConfiguration.getTargetImageAdditionalTags();
-  }
+    @Override
+    public Set<String> getToTags() {
+        return jibPluginConfiguration.getTargetImageAdditionalTags();
+    }
 
-  @Override
-  public Optional<List<String>> getEntrypoint() {
-    return Optional.ofNullable(jibPluginConfiguration.getEntrypoint());
-  }
+    @Override
+    public Optional<List<String>> getEntrypoint() {
+        return Optional.ofNullable(jibPluginConfiguration.getEntrypoint());
+    }
 
-  @Override
-  public Optional<List<String>> getProgramArguments() {
-    return Optional.ofNullable(jibPluginConfiguration.getArgs());
-  }
+    @Override
+    public Optional<List<String>> getProgramArguments() {
+        return Optional.ofNullable(jibPluginConfiguration.getArgs());
+    }
 
-  @Override
-  public List<String> getExtraClasspath() {
-    return jibPluginConfiguration.getExtraClasspath();
-  }
+    @Override
+    public List<String> getExtraClasspath() {
+        return jibPluginConfiguration.getExtraClasspath();
+    }
 
-  @Override
-  public Optional<String> getMainClass() {
-    return Optional.ofNullable(jibPluginConfiguration.getMainClass());
-  }
+    @Override
+    public Optional<String> getMainClass() {
+        return Optional.ofNullable(jibPluginConfiguration.getMainClass());
+    }
 
-  @Override
-  public List<String> getJvmFlags() {
-    return jibPluginConfiguration.getJvmFlags();
-  }
+    @Override
+    public List<String> getJvmFlags() {
+        return jibPluginConfiguration.getJvmFlags();
+    }
 
-  @Override
-  public String getAppRoot() {
-    return jibPluginConfiguration.getAppRoot();
-  }
+    @Override
+    public String getAppRoot() {
+        return jibPluginConfiguration.getAppRoot();
+    }
 
-  @Override
-  public Map<String, String> getEnvironment() {
-    return jibPluginConfiguration.getEnvironment();
-  }
+    @Override
+    public Map<String, String> getEnvironment() {
+        return jibPluginConfiguration.getEnvironment();
+    }
 
-  @Override
-  public Map<String, String> getLabels() {
-    return jibPluginConfiguration.getLabels();
-  }
+    @Override
+    public Map<String, String> getLabels() {
+        return jibPluginConfiguration.getLabels();
+    }
 
-  @Override
-  public List<String> getVolumes() {
-    return jibPluginConfiguration.getVolumes();
-  }
+    @Override
+    public List<String> getVolumes() {
+        return jibPluginConfiguration.getVolumes();
+    }
 
-  @Override
-  public List<String> getPorts() {
-    return jibPluginConfiguration.getExposedPorts();
-  }
+    @Override
+    public List<String> getPorts() {
+        return jibPluginConfiguration.getExposedPorts();
+    }
 
-  @Override
-  public Optional<String> getUser() {
-    return Optional.ofNullable(jibPluginConfiguration.getUser());
-  }
+    @Override
+    public Optional<String> getUser() {
+        return Optional.ofNullable(jibPluginConfiguration.getUser());
+    }
 
-  @Override
-  public Optional<String> getWorkingDirectory() {
-    return Optional.ofNullable(jibPluginConfiguration.getWorkingDirectory());
-  }
+    @Override
+    public Optional<String> getWorkingDirectory() {
+        return Optional.ofNullable(jibPluginConfiguration.getWorkingDirectory());
+    }
 
-  @Override
-  public boolean getUseCurrentTimestamp() {
-    return jibPluginConfiguration.getUseCurrentTimestamp();
-  }
+    @Override
+    public boolean getUseCurrentTimestamp() {
+        return jibPluginConfiguration.getUseCurrentTimestamp();
+    }
 
-  @Override
-  public boolean getAllowInsecureRegistries() {
-    return jibPluginConfiguration.getAllowInsecureRegistries();
-  }
+    @Override
+    public boolean getAllowInsecureRegistries() {
+        return jibPluginConfiguration.getAllowInsecureRegistries();
+    }
 
-  @Override
-  public ImageFormat getImageFormat() {
-    return ImageFormat.valueOf(jibPluginConfiguration.getFormat());
-  }
+    @Override
+    public ImageFormat getImageFormat() {
+        return ImageFormat.valueOf(jibPluginConfiguration.getFormat());
+    }
 
-  @Override
-  public Optional<String> getProperty(String propertyName) {
-    return Optional.ofNullable(jibPluginConfiguration.getProperty(propertyName));
-  }
+    @Override
+    public Optional<String> getProperty(String propertyName) {
+        return Optional.ofNullable(jibPluginConfiguration.getProperty(propertyName));
+    }
 
-  @Override
-  public String getFilesModificationTime() {
-    return jibPluginConfiguration.getFilesModificationTime();
-  }
+    @Override
+    public String getFilesModificationTime() {
+        return jibPluginConfiguration.getFilesModificationTime();
+    }
 
-  @Override
-  public List<Path> getExtraDirectories() {
-    return MojoCommon.getExtraDirectories(jibPluginConfiguration);
-  }
+    @Override
+    public List<Path> getExtraDirectories() {
+        return MojoCommon.getExtraDirectories(jibPluginConfiguration);
+    }
 
-  @Override
-  public Map<AbsoluteUnixPath, FilePermissions> getExtraDirectoryPermissions() {
-    return MojoCommon.convertPermissionsList(jibPluginConfiguration.getExtraDirectoryPermissions());
-  }
+    @Override
+    public Map<AbsoluteUnixPath, FilePermissions> getExtraDirectoryPermissions() {
+        return MojoCommon
+                .convertPermissionsList(jibPluginConfiguration.getExtraDirectoryPermissions());
+    }
 
-  @Override
-  public String getContainerizingMode() {
-    return jibPluginConfiguration.getContainerizingMode();
-  }
+    @Override
+    public String getContainerizingMode() {
+        return jibPluginConfiguration.getContainerizingMode();
+    }
 }

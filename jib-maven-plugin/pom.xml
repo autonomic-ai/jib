@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.autonomic</groupId>
+    <artifactId>au-parent</artifactId>
+    <version>1.5.5</version>
+  </parent>
 
   <groupId>com.autonomic.mojo</groupId>
   <artifactId>jib-maven-plugin</artifactId>
@@ -11,6 +16,8 @@
   <name>Jib</name>
   <description>A tool for building container images for your Java applications.</description>
   <url>https://github.com/GoogleContainerTools/jib</url>
+
+  <inceptionYear>2019</inceptionYear>
 
   <licenses>
     <license>
@@ -33,10 +40,8 @@
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/GoogleContainerTools/jib.git
-    </connection>
-    <developerConnection>scm:git:https://github.com/GoogleContainerTools/jib.git
-    </developerConnection>
+    <connection>scm:git:https://github.com/GoogleContainerTools/jib.git</connection>
+    <developerConnection>scm:git:https://github.com/GoogleContainerTools/jib.git</developerConnection>
     <url>https://github.com/GoogleContainerTools/jib</url>
   </scm>
 
@@ -46,6 +51,10 @@
     <!-- Use <maven.compiler.release> instead when migrating to JDK 11. -->
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
+    <jacoco.skip>true</jacoco.skip>
+    <fmt.skip>true</fmt.skip>
+    <rat.skip>true</rat.skip>
+    <checkstyle.skip>true</checkstyle.skip>
   </properties>
 
   <dependencies>
@@ -149,9 +158,248 @@
       <artifactId>maven-compat</artifactId>
       <version>3.5.4</version>
       <scope>test</scope>
-  </dependency>
+    </dependency>
 
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <!-- Imports jib-core and jib-plugins-common sources -->
+          <execution>
+            <id>add-jib-core-sources</id>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <sources>
+                <source>${basedir}/../jib-core/src/main/java</source>
+                <source>${basedir}/../jib-plugins-common/src/main/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-jib-core-resources</id>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${basedir}/../jib-core/src/main/resources</directory>
+                </resource>
+                <resource>
+                  <directory>${basedir}/../jib-plugins-common/src/main/resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-jib-core-test-sources</id>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+            <configuration>
+              <sources>
+                <source>${basedir}/../jib-core/src/test/java</source>
+                <source>${basedir}/../jib-plugins-common/src/test/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-jib-core-test-resources</id>
+            <goals>
+              <goal>add-test-resource</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${basedir}/../jib-core/src/test/resources</directory>
+                </resource>
+                <resource>
+                  <directory>${basedir}/../jib-plugins-common/src/test/resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-jib-core-integration-test-sources</id>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+            <configuration>
+              <sources>
+                <source>${basedir}/../jib-core/src/integration-test/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-jib-core-integration-test-resources</id>
+            <goals>
+              <goal>add-test-resource</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${basedir}/../jib-core/src/integration-test/resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Error-prone checks -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.0</version>
+        <executions>
+          <execution>
+            <id>compile-with-nullaway</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <!-- Use <release> instead when migrating to JDK 11. -->
+              <source>${maven.compiler.source}</source>
+              <target>${maven.compiler.target}</target>
+              <showDeprecation>true</showDeprecation>
+              <showWarnings>true</showWarnings>
+              <annotationProcessorPaths>
+                <path>
+                  <groupId>com.google.errorprone</groupId>
+                  <artifactId>error_prone_core</artifactId>
+                  <version>2.3.2</version>
+                </path>
+                <path>
+                  <groupId>com.uber.nullaway</groupId>
+                  <artifactId>nullaway</artifactId>
+                  <version>0.6.4</version>
+                </path>
+              </annotationProcessorPaths>
+              <compilerArgs>
+                <arg>-XDcompilePolicy=simple</arg>
+                <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Component -XepOpt:NullAway:AnnotatedPackages=com.google.cloud.tools</arg>
+              </compilerArgs>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Unit testing -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.22.1</version>
+        <configuration>
+          <excludes>
+            <exclude>**/*IntegrationTest.java</exclude>
+          </excludes>
+          <trimStackTrace>false</trimStackTrace>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-plugin-plugin</artifactId>
+        <version>3.6.0</version>
+      </plugin>
+
+      <!-- Google Java Format -->
+      <plugin>
+        <groupId>com.coveo</groupId>
+        <artifactId>fmt-maven-plugin</artifactId>
+        <version>2.6.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.google.googlejavaformat</groupId>
+            <artifactId>google-java-format</artifactId>
+            <version>1.6</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Checkstyle -->
+      <plugin>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>3.0.0</version>
+        <configuration>
+          <logViolationsToConsole>true</logViolationsToConsole>
+          <failOnViolation>true</failOnViolation>
+          <violationSeverity>warning</violationSeverity>
+          <sourceDirectories>
+            <sourceDirectory>{project.build.sourceDirectory}</sourceDirectory>
+          </sourceDirectories>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>8.18</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>google-checks</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <configLocation>config/google-checks-no-indent.xml</configLocation>
+            </configuration>
+          </execution>
+          <execution>
+            <id>header-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <configLocation>config/checkstyle-header.xml</configLocation>
+              <headerLocation>config/header-java.txt</headerLocation>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Jar -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <archive>
+            <!-- Necessary for adding version information into the JAR. -->
+            <manifest>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
   <profiles>
     <!-- Profile for running integration tests. -->
@@ -250,274 +498,4 @@
       </build>
     </profile>
   </profiles>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.jfrog.buildinfo</groupId>
-        <artifactId>artifactory-maven-plugin</artifactId>
-        <version>2.6.1</version>
-        <executions>
-          <execution>
-            <id>build-info</id>
-            <goals>
-              <goal>publish</goal>
-            </goals>
-            <configuration>
-              <publisher>
-                <contextUrl>https://autonomic.jfrog.io/autonomic</contextUrl>
-                <repoKey>libs-release-dev</repoKey>
-                <snapshotRepoKey>libs-snapshot-dev</snapshotRepoKey>
-                <username>${env.ARTIFACT_REPO_USERNAME}</username>
-                <password>${env.ARTIFACT_REPO_PASSWORD}</password>
-                <excludePatterns>*-exec.jar</excludePatterns>
-                <filterExcludedArtifactsFromBuild>true</filterExcludedArtifactsFromBuild>
-                <publishBuildInfo>false</publishBuildInfo>
-              </publisher>
-              <deployProperties>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>${project.artifactId}</artifactId>
-                <version>${project.version}</version>
-              </deployProperties>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.0.0</version>
-        <executions>
-          <!-- Imports jib-core and jib-plugins-common sources -->
-          <execution>
-            <id>add-jib-core-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../jib-core/src/main/java</source>
-                <source>${basedir}/../jib-plugins-common/src/main/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-jib-core-resources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${basedir}/../jib-core/src/main/resources</directory>
-                </resource>
-                <resource>
-                  <directory>${basedir}/../jib-plugins-common/src/main/resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-jib-core-test-sources</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../jib-core/src/test/java</source>
-                <source>${basedir}/../jib-plugins-common/src/test/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-jib-core-test-resources</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${basedir}/../jib-core/src/test/resources</directory>
-                </resource>
-                <resource>
-                  <directory>${basedir}/../jib-plugins-common/src/test/resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-jib-core-integration-test-sources</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../jib-core/src/integration-test/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-jib-core-integration-test-resources</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${basedir}/../jib-core/src/integration-test/resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Error-prone checks -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.0</version>
-        <executions>
-          <execution>
-            <id>compile-with-nullaway</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <!-- Use <release> instead when migrating to JDK 11. -->
-              <source>${maven.compiler.source}</source>
-              <target>${maven.compiler.target}</target>
-              <showDeprecation>true</showDeprecation>
-              <showWarnings>true</showWarnings>
-              <annotationProcessorPaths>
-                <path>
-                  <groupId>com.google.errorprone</groupId>
-                  <artifactId>error_prone_core</artifactId>
-                  <version>2.3.2</version>
-                </path>
-                <path>
-                  <groupId>com.uber.nullaway</groupId>
-                  <artifactId>nullaway</artifactId>
-                  <version>0.6.4</version>
-                </path>
-              </annotationProcessorPaths>
-              <compilerArgs>
-                <arg>-XDcompilePolicy=simple</arg>
-                <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:ExcludedFieldAnnotations=org.apache.maven.plugins.annotations.Component -XepOpt:NullAway:AnnotatedPackages=com.google.cloud.tools</arg>
-              </compilerArgs>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Unit testing -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.22.1</version>
-        <configuration>
-          <excludes>
-            <exclude>**/*IntegrationTest.java</exclude>
-          </excludes>
-          <trimStackTrace>false</trimStackTrace>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-plugin-plugin</artifactId>
-        <version>3.6.0</version>
-      </plugin>
-
-      <!-- Google Java Format -->
-      <plugin>
-        <groupId>com.coveo</groupId>
-        <artifactId>fmt-maven-plugin</artifactId>
-        <version>2.6.0</version>
-        <dependencies>
-          <dependency>
-            <groupId>com.google.googlejavaformat</groupId>
-            <artifactId>google-java-format</artifactId>
-            <version>1.6</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <phase>validate</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Checkstyle -->
-      <plugin>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.0.0</version>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>8.18</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <logViolationsToConsole>true</logViolationsToConsole>
-          <failOnViolation>true</failOnViolation>
-          <violationSeverity>warning</violationSeverity>
-          <sourceDirectories>
-            <sourceDirectory>{project.build.sourceDirectory}</sourceDirectory>
-          </sourceDirectories>
-        </configuration>
-        <executions>
-          <execution>
-            <id>google-checks</id>
-            <phase>validate</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <configuration>
-              <configLocation>config/google-checks-no-indent.xml</configLocation>
-            </configuration>
-          </execution>
-          <execution>
-            <id>header-check</id>
-            <phase>validate</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <configuration>
-              <configLocation>config/checkstyle-header.xml</configLocation>
-              <headerLocation>config/header-java.txt</headerLocation>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Jar -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.1.0</version>
-        <configuration>
-          <archive>
-            <!-- Necessary for adding version information into the JAR. -->
-            <manifest>
-              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-            </manifest>
-          </archive>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
 </project>

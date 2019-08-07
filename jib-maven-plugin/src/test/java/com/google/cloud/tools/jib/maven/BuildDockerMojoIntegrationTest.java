@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -33,226 +50,232 @@ import org.junit.Test;
 /** Integration tests for {@link BuildDockerMojo}. */
 public class BuildDockerMojoIntegrationTest {
 
-  @ClassRule public static final TestPlugin testPlugin = new TestPlugin();
+    @ClassRule
+    public static final TestPlugin testPlugin = new TestPlugin();
 
-  @ClassRule
-  public static final TestProject simpleTestProject = new TestProject(testPlugin, "simple");
+    @ClassRule
+    public static final TestProject simpleTestProject = new TestProject(testPlugin, "simple");
 
-  @ClassRule
-  public static final TestProject emptyTestProject = new TestProject(testPlugin, "empty");
+    @ClassRule
+    public static final TestProject emptyTestProject = new TestProject(testPlugin, "empty");
 
-  @ClassRule
-  public static final TestProject defaultTargetTestProject =
-      new TestProject(testPlugin, "default-target");
+    @ClassRule
+    public static final TestProject defaultTargetTestProject =
+            new TestProject(testPlugin, "default-target");
 
-  private static void buildToDockerDaemon(Path projectRoot, String imageReference, String pomXml)
-      throws VerificationException, DigestException, IOException {
-    Verifier verifier = new Verifier(projectRoot.toString());
-    verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
-    verifier.setSystemProperty("_TARGET_IMAGE", imageReference);
-    verifier.setAutoclean(false);
-    verifier.addCliOption("--file=" + pomXml);
-    verifier.executeGoal("package");
+    private static void buildToDockerDaemon(Path projectRoot, String imageReference, String pomXml)
+            throws VerificationException, DigestException, IOException {
+        Verifier verifier = new Verifier(projectRoot.toString());
+        verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
+        verifier.setSystemProperty("_TARGET_IMAGE", imageReference);
+        verifier.setAutoclean(false);
+        verifier.addCliOption("--file=" + pomXml);
+        verifier.executeGoal("package");
 
-    verifier.executeGoal("jib:dockerBuild");
-    verifier.verifyErrorFreeLog();
+        verifier.executeGoal("jib:dockerBuild");
+        verifier.verifyErrorFreeLog();
 
-    BuildImageMojoIntegrationTest.assertImageDigest(projectRoot);
-  }
-
-  /**
-   * Builds and runs jib:buildDocker on a project at {@code projectRoot} pushing to {@code
-   * imageReference}.
-   */
-  private static String buildToDockerDaemonAndRun(Path projectRoot, String imageReference)
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    buildToDockerDaemon(projectRoot, imageReference, "pom.xml");
-
-    String dockerInspect = new Command("docker", "inspect", imageReference).run();
-    Assert.assertThat(
-        dockerInspect,
-        CoreMatchers.containsString(
-            "            \"Volumes\": {\n"
-                + "                \"/var/log\": {},\n"
-                + "                \"/var/log2\": {}\n"
-                + "            },"));
-    Assert.assertThat(
-        dockerInspect,
-        CoreMatchers.containsString(
-            "            \"ExposedPorts\": {\n"
-                + "                \"1000/tcp\": {},\n"
-                + "                \"2000/udp\": {},\n"
-                + "                \"2001/udp\": {},\n"
-                + "                \"2002/udp\": {},\n"
-                + "                \"2003/udp\": {}"));
-    Assert.assertThat(
-        dockerInspect,
-        CoreMatchers.containsString(
-            "            \"Labels\": {\n"
-                + "                \"key1\": \"value1\",\n"
-                + "                \"key2\": \"value2\"\n"
-                + "            }"));
-
-    return new Command("docker", "run", "--rm", imageReference).run();
-  }
-
-  @Test
-  public void testExecute_simple()
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
-
-    Instant before = Instant.now();
-    Assert.assertEquals(
-        "Hello, world. An argument.\n1970-01-01T00:00:01Z\nrw-r--r--\nrw-r--r--\nfoo\ncat\n"
-            + "1970-01-01T00:00:01Z\n1970-01-01T00:00:01Z\n",
-        buildToDockerDaemonAndRun(simpleTestProject.getProjectRoot(), targetImage));
-    Instant buildTime =
-        Instant.parse(
-            new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run().trim());
-    Assert.assertTrue(buildTime.isAfter(before) || buildTime.equals(before));
-  }
-
-  @Test
-  public void testExecute_dockerClient()
-      throws VerificationException, IOException, InterruptedException {
-    Assume.assumeFalse(System.getProperty("os.name").startsWith("Windows"));
-    new Command(
-            "chmod", "+x", simpleTestProject.getProjectRoot().resolve("mock-docker.sh").toString())
-        .run();
-
-    String targetImage = "simpleimage:maven" + System.nanoTime();
-    Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-    verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
-    verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-    verifier.setAutoclean(false);
-    verifier.addCliOption("--file=pom-dockerclient.xml");
-    verifier.addCliOption("--debug");
-    verifier.executeGoal("package");
-
-    verifier.executeGoal("jib:dockerBuild");
-    verifier.verifyTextInLog("Docker load called. value1 value2");
-    verifier.verifyErrorFreeLog();
-  }
-
-  @Test
-  public void testExecute_empty()
-      throws InterruptedException, IOException, VerificationException, DigestException {
-    String targetImage = "emptyimage:maven" + System.nanoTime();
-
-    Assert.assertEquals(
-        "", buildToDockerDaemonAndRun(emptyTestProject.getProjectRoot(), targetImage));
-    Assert.assertEquals(
-        "1970-01-01T00:00:00Z",
-        new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run().trim());
-  }
-
-  @Test
-  public void testExecute_defaultTarget()
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    Assert.assertEquals(
-        "Hello, world. An argument.\n",
-        buildToDockerDaemonAndRun(
-            defaultTargetTestProject.getProjectRoot(),
-            "default-target-name:default-target-version"));
-  }
-
-  @Test
-  public void testExecute_jibSkip() throws VerificationException, IOException {
-    SkippedGoalVerifier.verifyJibSkip(emptyTestProject, BuildDockerMojo.GOAL_NAME);
-  }
-
-  @Test
-  public void testExecute_jibContainerizeSkips() throws VerificationException, IOException {
-    SkippedGoalVerifier.verifyJibContainerizeSkips(emptyTestProject, BuildDockerMojo.GOAL_NAME);
-  }
-
-  @Test
-  public void testExecute_userNumeric()
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    String targetImage = "emptyimage:maven" + System.nanoTime();
-    buildToDockerDaemon(emptyTestProject.getProjectRoot(), targetImage, "pom.xml");
-    Assert.assertEquals(
-        "12345:54321",
-        new Command("docker", "inspect", "-f", "{{.Config.User}}", targetImage).run().trim());
-  }
-
-  @Test
-  public void testExecute_userNames()
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    String targetImage = "brokenuserimage:maven" + System.nanoTime();
-    buildToDockerDaemon(emptyTestProject.getProjectRoot(), targetImage, "pom-broken-user.xml");
-    Assert.assertEquals(
-        "myuser:mygroup",
-        new Command("docker", "inspect", "-f", "{{.Config.User}}", targetImage).run().trim());
-  }
-
-  @Test
-  public void testExecute_noToImageAndInvalidProjectName()
-      throws DigestException, VerificationException, IOException, InterruptedException {
-    buildToDockerDaemon(
-        simpleTestProject.getProjectRoot(), "image reference ignored", "pom-no-to-image.xml");
-    Assert.assertEquals(
-        "Hello, world. \n1970-01-01T00:00:01Z\n",
-        new Command("docker", "run", "--rm", "my-artifact-id:1").run());
-  }
-
-  @Test
-  public void testExecute_jarContainerization()
-      throws DigestException, VerificationException, IOException, InterruptedException {
-    String targetImage = "jarcontainerizationimage:maven" + System.nanoTime();
-    buildToDockerDaemon(
-        simpleTestProject.getProjectRoot(), targetImage, "pom-jar-containerization.xml");
-    Assert.assertEquals(
-        "Hello, world. \nImplementation-Title: hello-world\nImplementation-Version: 1\n",
-        new Command("docker", "run", "--rm", targetImage).run());
-  }
-
-  @Test
-  public void testExecute_jarContainerizationOnMissingJar() throws IOException {
-    try {
-      Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-      verifier.setSystemProperty("_TARGET_IMAGE", "erroronmissingjar");
-      verifier.setAutoclean(false);
-      verifier.addCliOption("--file=pom-jar-containerization.xml");
-      verifier.executeGoals(Arrays.asList("clean", "jib:dockerBuild"));
-      Assert.fail();
-
-    } catch (VerificationException ex) {
-      Assert.assertThat(
-          ex.getMessage(),
-          CoreMatchers.containsString(
-              "Obtaining project build output files failed; make sure you have packaged your "
-                  + "project before trying to build the image. (Did you accidentally run \"mvn "
-                  + "clean jib:build\" instead of \"mvn clean package jib:build\"?)"));
+        BuildImageMojoIntegrationTest.assertImageDigest(projectRoot);
     }
-  }
 
-  @Test
-  public void testExecute_jibRequireVersion_ok() throws VerificationException, IOException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
+    /**
+     * Builds and runs jib:buildDocker on a project at {@code projectRoot} pushing to {@code
+     * imageReference}.
+     */
+    private static String buildToDockerDaemonAndRun(Path projectRoot, String imageReference)
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        buildToDockerDaemon(projectRoot, imageReference, "pom.xml");
 
-    Instant before = Instant.now();
-    Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-    // this plugin should match 1.0
-    verifier.setSystemProperty("jib.requiredVersion", "1.0");
-    verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-    verifier.executeGoals(Arrays.asList("package", "jib:dockerBuild"));
-    verifier.verifyErrorFreeLog();
-  }
+        String dockerInspect = new Command("docker", "inspect", imageReference).run();
+        Assert.assertThat(
+                dockerInspect,
+                CoreMatchers.containsString(
+                        "            \"Volumes\": {\n"
+                                + "                \"/var/log\": {},\n"
+                                + "                \"/var/log2\": {}\n"
+                                + "            },"));
+        Assert.assertThat(
+                dockerInspect,
+                CoreMatchers.containsString(
+                        "            \"ExposedPorts\": {\n"
+                                + "                \"1000/tcp\": {},\n"
+                                + "                \"2000/udp\": {},\n"
+                                + "                \"2001/udp\": {},\n"
+                                + "                \"2002/udp\": {},\n"
+                                + "                \"2003/udp\": {}"));
+        Assert.assertThat(
+                dockerInspect,
+                CoreMatchers.containsString(
+                        "            \"Labels\": {\n"
+                                + "                \"key1\": \"value1\",\n"
+                                + "                \"key2\": \"value2\"\n"
+                                + "            }"));
 
-  @Test
-  public void testExecute_jibRequireVersion_fail() throws IOException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
-
-    try {
-      Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-      verifier.setSystemProperty("jib.requiredVersion", "[,1.0]");
-      verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-      verifier.executeGoals(Arrays.asList("package", "jib:dockerBuild"));
-      Assert.fail();
-    } catch (VerificationException ex) {
-      Assert.assertThat(
-          ex.getMessage(), CoreMatchers.containsString("but is required to be [,1.0]"));
+        return new Command("docker", "run", "--rm", imageReference).run();
     }
-  }
+
+    @Test
+    public void testExecute_simple()
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+
+        Instant before = Instant.now();
+        Assert.assertEquals(
+                "Hello, world. An argument.\n1970-01-01T00:00:01Z\nrw-r--r--\nrw-r--r--\nfoo\ncat\n"
+                        + "1970-01-01T00:00:01Z\n1970-01-01T00:00:01Z\n",
+                buildToDockerDaemonAndRun(simpleTestProject.getProjectRoot(), targetImage));
+        Instant buildTime =
+                Instant.parse(
+                        new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run()
+                                .trim());
+        Assert.assertTrue(buildTime.isAfter(before) || buildTime.equals(before));
+    }
+
+    @Test
+    public void testExecute_dockerClient()
+            throws VerificationException, IOException, InterruptedException {
+        Assume.assumeFalse(System.getProperty("os.name").startsWith("Windows"));
+        new Command(
+                "chmod", "+x",
+                simpleTestProject.getProjectRoot().resolve("mock-docker.sh").toString())
+                        .run();
+
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+        Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+        verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
+        verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+        verifier.setAutoclean(false);
+        verifier.addCliOption("--file=pom-dockerclient.xml");
+        verifier.addCliOption("--debug");
+        verifier.executeGoal("package");
+
+        verifier.executeGoal("jib:dockerBuild");
+        verifier.verifyTextInLog("Docker load called. value1 value2");
+        verifier.verifyErrorFreeLog();
+    }
+
+    @Test
+    public void testExecute_empty()
+            throws InterruptedException, IOException, VerificationException, DigestException {
+        String targetImage = "emptyimage:maven" + System.nanoTime();
+
+        Assert.assertEquals(
+                "", buildToDockerDaemonAndRun(emptyTestProject.getProjectRoot(), targetImage));
+        Assert.assertEquals(
+                "1970-01-01T00:00:00Z",
+                new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run().trim());
+    }
+
+    @Test
+    public void testExecute_defaultTarget()
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        Assert.assertEquals(
+                "Hello, world. An argument.\n",
+                buildToDockerDaemonAndRun(
+                        defaultTargetTestProject.getProjectRoot(),
+                        "default-target-name:default-target-version"));
+    }
+
+    @Test
+    public void testExecute_jibSkip() throws VerificationException, IOException {
+        SkippedGoalVerifier.verifyJibSkip(emptyTestProject, BuildDockerMojo.GOAL_NAME);
+    }
+
+    @Test
+    public void testExecute_jibContainerizeSkips() throws VerificationException, IOException {
+        SkippedGoalVerifier.verifyJibContainerizeSkips(emptyTestProject, BuildDockerMojo.GOAL_NAME);
+    }
+
+    @Test
+    public void testExecute_userNumeric()
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        String targetImage = "emptyimage:maven" + System.nanoTime();
+        buildToDockerDaemon(emptyTestProject.getProjectRoot(), targetImage, "pom.xml");
+        Assert.assertEquals(
+                "12345:54321",
+                new Command("docker", "inspect", "-f", "{{.Config.User}}", targetImage).run()
+                        .trim());
+    }
+
+    @Test
+    public void testExecute_userNames()
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        String targetImage = "brokenuserimage:maven" + System.nanoTime();
+        buildToDockerDaemon(emptyTestProject.getProjectRoot(), targetImage, "pom-broken-user.xml");
+        Assert.assertEquals(
+                "myuser:mygroup",
+                new Command("docker", "inspect", "-f", "{{.Config.User}}", targetImage).run()
+                        .trim());
+    }
+
+    @Test
+    public void testExecute_noToImageAndInvalidProjectName()
+            throws DigestException, VerificationException, IOException, InterruptedException {
+        buildToDockerDaemon(
+                simpleTestProject.getProjectRoot(), "image reference ignored",
+                "pom-no-to-image.xml");
+        Assert.assertEquals(
+                "Hello, world. \n1970-01-01T00:00:01Z\n",
+                new Command("docker", "run", "--rm", "my-artifact-id:1").run());
+    }
+
+    @Test
+    public void testExecute_jarContainerization()
+            throws DigestException, VerificationException, IOException, InterruptedException {
+        String targetImage = "jarcontainerizationimage:maven" + System.nanoTime();
+        buildToDockerDaemon(
+                simpleTestProject.getProjectRoot(), targetImage, "pom-jar-containerization.xml");
+        Assert.assertEquals(
+                "Hello, world. \nImplementation-Title: hello-world\nImplementation-Version: 1\n",
+                new Command("docker", "run", "--rm", targetImage).run());
+    }
+
+    @Test
+    public void testExecute_jarContainerizationOnMissingJar() throws IOException {
+        try {
+            Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+            verifier.setSystemProperty("_TARGET_IMAGE", "erroronmissingjar");
+            verifier.setAutoclean(false);
+            verifier.addCliOption("--file=pom-jar-containerization.xml");
+            verifier.executeGoals(Arrays.asList("clean", "jib:dockerBuild"));
+            Assert.fail();
+
+        } catch (VerificationException ex) {
+            Assert.assertThat(
+                    ex.getMessage(),
+                    CoreMatchers.containsString(
+                            "Obtaining project build output files failed; make sure you have packaged your "
+                                    + "project before trying to build the image. (Did you accidentally run \"mvn "
+                                    + "clean jib:build\" instead of \"mvn clean package jib:build\"?)"));
+        }
+    }
+
+    @Test
+    public void testExecute_jibRequireVersion_ok() throws VerificationException, IOException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+
+        Instant before = Instant.now();
+        Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+        // this plugin should match 1.0
+        verifier.setSystemProperty("jib.requiredVersion", "1.0");
+        verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+        verifier.executeGoals(Arrays.asList("package", "jib:dockerBuild"));
+        verifier.verifyErrorFreeLog();
+    }
+
+    @Test
+    public void testExecute_jibRequireVersion_fail() throws IOException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+
+        try {
+            Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+            verifier.setSystemProperty("jib.requiredVersion", "[,1.0]");
+            verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+            verifier.executeGoals(Arrays.asList("package", "jib:dockerBuild"));
+            Assert.fail();
+        } catch (VerificationException ex) {
+            Assert.assertThat(
+                    ex.getMessage(), CoreMatchers.containsString("but is required to be [,1.0]"));
+        }
+    }
 }
