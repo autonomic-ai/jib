@@ -266,10 +266,13 @@
             <configuration>
               <publisher>
                 <contextUrl>https://autonomic.jfrog.io/autonomic</contextUrl>
-                <repoKey>plugins-release-local</repoKey>
-                <snapshotRepoKey>plugins-snapshot-local</snapshotRepoKey>
+                <repoKey>libs-release-dev</repoKey>
+                <snapshotRepoKey>libs-snapshot-dev</snapshotRepoKey>
                 <username>${env.ARTIFACT_REPO_USERNAME}</username>
-                <password>${env.ARTIFACTORY_PASSWORD}</password>
+                <password>${env.ARTIFACT_REPO_PASSWORD}</password>
+                <excludePatterns>*-exec.jar</excludePatterns>
+                <filterExcludedArtifactsFromBuild>true</filterExcludedArtifactsFromBuild>
+                <publishBuildInfo>false</publishBuildInfo>
               </publisher>
               <deployProperties>
                 <groupId>${project.groupId}</groupId>
