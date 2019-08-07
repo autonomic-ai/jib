@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -34,77 +51,79 @@ import org.apache.maven.project.MavenProject;
 
 /** Collection of common methods to share between Maven goals. */
 public class MojoCommon {
-  /** Describes a minimum required version or version range for Jib. */
-  @VisibleForTesting
-  public static final String REQUIRED_VERSION_PROPERTY_NAME = "jib.requiredVersion";
+    /** Describes a minimum required version or version range for Jib. */
+    @VisibleForTesting
+    public static final String REQUIRED_VERSION_PROPERTY_NAME = "jib.requiredVersion";
 
-  /**
-   * Gets the list of extra directory paths from a {@link JibPluginConfiguration}. Returns {@code
-   * (project dir)/src/main/jib} by default if not configured.
-   *
-   * @param jibPluginConfiguration the build configuration
-   * @return the list of resolved extra directories
-   */
-  static List<Path> getExtraDirectories(JibPluginConfiguration jibPluginConfiguration) {
-    List<Path> paths = jibPluginConfiguration.getExtraDirectories();
-    if (!paths.isEmpty()) {
-      return paths;
+    /**
+     * Gets the list of extra directory paths from a {@link JibPluginConfiguration}. Returns {@code
+     * (project dir)/src/main/jib} by default if not configured.
+     *
+     * @param jibPluginConfiguration the build configuration
+     * @return the list of resolved extra directories
+     */
+    static List<Path> getExtraDirectories(JibPluginConfiguration jibPluginConfiguration) {
+        List<Path> paths = jibPluginConfiguration.getExtraDirectories();
+        if (!paths.isEmpty()) {
+            return paths;
+        }
+
+        MavenProject project = Preconditions.checkNotNull(jibPluginConfiguration.getProject());
+        return Collections.singletonList(
+                project.getBasedir().toPath().resolve("src").resolve("main").resolve("jib"));
     }
 
-    MavenProject project = Preconditions.checkNotNull(jibPluginConfiguration.getProject());
-    return Collections.singletonList(
-        project.getBasedir().toPath().resolve("src").resolve("main").resolve("jib"));
-  }
+    /**
+     * Validates and converts a list of {@link PermissionConfiguration} to an equivalent {@code
+     * AbsoluteUnixPath->FilePermission} map.
+     *
+     * @param permissionList the list to convert
+     * @return the resulting map
+     */
+    @VisibleForTesting
+    static Map<AbsoluteUnixPath, FilePermissions> convertPermissionsList(
+            List<PermissionConfiguration> permissionList) {
+        Map<AbsoluteUnixPath, FilePermissions> permissionsMap = new HashMap<>();
+        for (PermissionConfiguration permission : permissionList) {
+            if (!permission.getFile().isPresent() || !permission.getMode().isPresent()) {
+                throw new IllegalArgumentException(
+                        "Incomplete <permission> configuration; requires <file> and <mode> fields to be set");
+            }
+            AbsoluteUnixPath key = AbsoluteUnixPath.get(permission.getFile().get());
+            FilePermissions value = FilePermissions.fromOctalString(permission.getMode().get());
+            permissionsMap.put(key, value);
+        }
+        return permissionsMap;
+    }
 
-  /**
-   * Validates and converts a list of {@link PermissionConfiguration} to an equivalent {@code
-   * AbsoluteUnixPath->FilePermission} map.
-   *
-   * @param permissionList the list to convert
-   * @return the resulting map
-   */
-  @VisibleForTesting
-  static Map<AbsoluteUnixPath, FilePermissions> convertPermissionsList(
-      List<PermissionConfiguration> permissionList) {
-    Map<AbsoluteUnixPath, FilePermissions> permissionsMap = new HashMap<>();
-    for (PermissionConfiguration permission : permissionList) {
-      if (!permission.getFile().isPresent() || !permission.getMode().isPresent()) {
-        throw new IllegalArgumentException(
-            "Incomplete <permission> configuration; requires <file> and <mode> fields to be set");
-      }
-      AbsoluteUnixPath key = AbsoluteUnixPath.get(permission.getFile().get());
-      FilePermissions value = FilePermissions.fromOctalString(permission.getMode().get());
-      permissionsMap.put(key, value);
+    /**
+     * Check that the actual version satisfies required Jib version range when specified. No check
+     * is performed if the provided Jib version is {@code null}, which should only occur during
+     * debug.
+     *
+     * @param descriptor the plugin version
+     * @throws MojoExecutionException if the version is not acceptable
+     */
+    public static void checkJibVersion(PluginDescriptor descriptor) throws MojoExecutionException {
+        String acceptableVersionSpec =
+                System.getProperty(MojoCommon.REQUIRED_VERSION_PROPERTY_NAME);
+        if (acceptableVersionSpec == null) {
+            return;
+        }
+        String actualVersion = descriptor.getVersion();
+        if (actualVersion == null) {
+            throw new MojoExecutionException("Could not determine Jib plugin version");
+        }
+        VersionChecker<DefaultArtifactVersion> checker =
+                new VersionChecker<>(DefaultArtifactVersion::new);
+        if (!checker.compatibleVersion(acceptableVersionSpec, actualVersion)) {
+            String failure =
+                    String.format(
+                            "Jib plugin version is %s but is required to be %s",
+                            actualVersion, acceptableVersionSpec);
+            throw new MojoExecutionException(failure);
+        }
     }
-    return permissionsMap;
-  }
 
-  /**
-   * Check that the actual version satisfies required Jib version range when specified. No check is
-   * performed if the provided Jib version is {@code null}, which should only occur during debug.
-   *
-   * @param descriptor the plugin version
-   * @throws MojoExecutionException if the version is not acceptable
-   */
-  public static void checkJibVersion(PluginDescriptor descriptor) throws MojoExecutionException {
-    String acceptableVersionSpec = System.getProperty(MojoCommon.REQUIRED_VERSION_PROPERTY_NAME);
-    if (acceptableVersionSpec == null) {
-      return;
-    }
-    String actualVersion = descriptor.getVersion();
-    if (actualVersion == null) {
-      throw new MojoExecutionException("Could not determine Jib plugin version");
-    }
-    VersionChecker<DefaultArtifactVersion> checker =
-        new VersionChecker<>(DefaultArtifactVersion::new);
-    if (!checker.compatibleVersion(acceptableVersionSpec, actualVersion)) {
-      String failure =
-          String.format(
-              "Jib plugin version is %s but is required to be %s",
-              actualVersion, acceptableVersionSpec);
-      throw new MojoExecutionException(failure);
-    }
-  }
-
-  private MojoCommon() {}
+    private MojoCommon() {}
 }

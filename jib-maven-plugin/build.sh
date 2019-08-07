@@ -1,8 +1,6 @@
-#!/bin/bash
-
 ###
 # ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-# The Apache License, Version 2.0
+# Autonomic Proprietary 1.0
 # ——————————————————————————————————————————————————————————————————————————————
 # Copyright (C) 2019 Autonomic, LLC - All rights reserved
 # ——————————————————————————————————————————————————————————————————————————————
@@ -19,8 +17,5 @@
 # Unauthorized copy of this file, via any medium is strictly prohibited.
 # ______________________________________________________________________________
 ###
-
-# Read stdin to avoid broken pipe
-cat > /dev/null
-
-echo "Docker load called. $envvar1 $envvar2"
+./mvnw versions:set -DnewVersion=au-$FINAL_OR_BRANCH_SNAPSHOT_VERSION
+./mvnw deploy

@@ -1,3 +1,22 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 package com.google.cloud.tools.jib.maven;
 
 import com.google.common.io.Resources;
@@ -22,48 +41,48 @@ import org.junit.rules.ExternalResource;
 /** A test helper to resolve artifacts from a local repository in test/resources */
 public class TestRepository extends ExternalResource {
 
-  private static final String TEST_M2 = "maven/testM2";
+    private static final String TEST_M2 = "maven/testM2";
 
-  private MojoRule testHarness;
-  private ArtifactRepositoryFactory artifactRepositoryFactory;
-  private ArtifactHandlerManager artifactHandlerManager;
-  private ArtifactRepository testLocalRepo;
-  private ArtifactResolver artifactResolver;
-  private ArtifactHandler jarHandler;
+    private MojoRule testHarness;
+    private ArtifactRepositoryFactory artifactRepositoryFactory;
+    private ArtifactHandlerManager artifactHandlerManager;
+    private ArtifactRepository testLocalRepo;
+    private ArtifactResolver artifactResolver;
+    private ArtifactHandler jarHandler;
 
-  @Override
-  protected void before()
-      throws ComponentLookupException, URISyntaxException, MalformedURLException {
-    testHarness = new MojoRule();
-    artifactRepositoryFactory = testHarness.lookup(ArtifactRepositoryFactory.class);
-    artifactHandlerManager = testHarness.lookup(ArtifactHandlerManager.class);
-    artifactResolver = testHarness.lookup(ArtifactResolver.class);
-    jarHandler = artifactHandlerManager.getArtifactHandler("jar");
+    @Override
+    protected void before()
+            throws ComponentLookupException, URISyntaxException, MalformedURLException {
+        testHarness = new MojoRule();
+        artifactRepositoryFactory = testHarness.lookup(ArtifactRepositoryFactory.class);
+        artifactHandlerManager = testHarness.lookup(ArtifactHandlerManager.class);
+        artifactResolver = testHarness.lookup(ArtifactResolver.class);
+        jarHandler = artifactHandlerManager.getArtifactHandler("jar");
 
-    testLocalRepo =
-        artifactRepositoryFactory.createArtifactRepository(
-            "test",
-            Resources.getResource(TEST_M2).toURI().toURL().toString(),
-            new DefaultRepositoryLayout(),
-            null,
-            null);
-  }
+        testLocalRepo =
+                artifactRepositoryFactory.createArtifactRepository(
+                        "test",
+                        Resources.getResource(TEST_M2).toURI().toURL().toString(),
+                        new DefaultRepositoryLayout(),
+                        null,
+                        null);
+    }
 
-  public Artifact findArtifact(String group, String artifact, String version) {
-    ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
-    artifactResolutionRequest.setLocalRepository(testLocalRepo);
-    Artifact artifactToFind =
-        new DefaultArtifact(group, artifact, version, null, "jar", null, jarHandler);
+    public Artifact findArtifact(String group, String artifact, String version) {
+        ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
+        artifactResolutionRequest.setLocalRepository(testLocalRepo);
+        Artifact artifactToFind =
+                new DefaultArtifact(group, artifact, version, null, "jar", null, jarHandler);
 
-    artifactResolutionRequest.setArtifact(artifactToFind);
+        artifactResolutionRequest.setArtifact(artifactToFind);
 
-    ArtifactResolutionResult ars = artifactResolver.resolve(artifactResolutionRequest);
+        ArtifactResolutionResult ars = artifactResolver.resolve(artifactResolutionRequest);
 
-    Assert.assertEquals(1, ars.getArtifacts().size());
-    return ars.getArtifacts().iterator().next();
-  }
+        Assert.assertEquals(1, ars.getArtifacts().size());
+        return ars.getArtifacts().iterator().next();
+    }
 
-  public Path artifactPathOnDisk(String group, String artifact, String version) {
-    return findArtifact(group, artifact, version).getFile().toPath();
-  }
+    public Path artifactPathOnDisk(String group, String artifact, String version) {
+        return findArtifact(group, artifact, version).getFile().toPath();
+    }
 }

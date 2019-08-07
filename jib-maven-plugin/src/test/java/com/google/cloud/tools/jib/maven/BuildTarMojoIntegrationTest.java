@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -30,93 +47,96 @@ import org.junit.Test;
 
 public class BuildTarMojoIntegrationTest {
 
-  @ClassRule public static final TestPlugin testPlugin = new TestPlugin();
+    @ClassRule
+    public static final TestPlugin testPlugin = new TestPlugin();
 
-  @ClassRule
-  public static final TestProject simpleTestProject = new TestProject(testPlugin, "simple");
+    @ClassRule
+    public static final TestProject simpleTestProject = new TestProject(testPlugin, "simple");
 
-  @ClassRule
-  public static final TestProject skippedTestProject = new TestProject(testPlugin, "empty");
+    @ClassRule
+    public static final TestProject skippedTestProject = new TestProject(testPlugin, "empty");
 
-  /**
-   * Builds and runs jib:buildTar on a project at {@code projectRoot} pushing to {@code
-   * imageReference}.
-   *
-   * @throws DigestException
-   */
-  @Test
-  public void testExecute_simple()
-      throws VerificationException, IOException, InterruptedException, DigestException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
+    /**
+     * Builds and runs jib:buildTar on a project at {@code projectRoot} pushing to {@code
+     * imageReference}.
+     *
+     * @throws DigestException
+     */
+    @Test
+    public void testExecute_simple()
+            throws VerificationException, IOException, InterruptedException, DigestException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
 
-    Instant before = Instant.now();
-    Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-    verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
-    verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-    verifier.setAutoclean(false);
-    verifier.executeGoal("package");
+        Instant before = Instant.now();
+        Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+        verifier.setSystemProperty("jib.useOnlyProjectCache", "true");
+        verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+        verifier.setAutoclean(false);
+        verifier.executeGoal("package");
 
-    verifier.executeGoal("jib:" + BuildTarMojo.GOAL_NAME);
-    verifier.verifyErrorFreeLog();
+        verifier.executeGoal("jib:" + BuildTarMojo.GOAL_NAME);
+        verifier.verifyErrorFreeLog();
 
-    BuildImageMojoIntegrationTest.assertImageDigest(simpleTestProject.getProjectRoot());
+        BuildImageMojoIntegrationTest.assertImageDigest(simpleTestProject.getProjectRoot());
 
-    new Command(
-            "docker",
-            "load",
-            "--input",
-            simpleTestProject
-                .getProjectRoot()
-                .resolve("target")
-                .resolve("jib-image.tar")
-                .toString())
-        .run();
-    Assert.assertEquals(
-        "Hello, world. An argument.\n1970-01-01T00:00:01Z\nrw-r--r--\nrw-r--r--\nfoo\ncat\n1970-01-01T00:00:01Z\n1970-01-01T00:00:01Z\n",
-        new Command("docker", "run", "--rm", targetImage).run());
+        new Command(
+                "docker",
+                "load",
+                "--input",
+                simpleTestProject
+                        .getProjectRoot()
+                        .resolve("target")
+                        .resolve("jib-image.tar")
+                        .toString())
+                                .run();
+        Assert.assertEquals(
+                "Hello, world. An argument.\n1970-01-01T00:00:01Z\nrw-r--r--\nrw-r--r--\nfoo\ncat\n1970-01-01T00:00:01Z\n1970-01-01T00:00:01Z\n",
+                new Command("docker", "run", "--rm", targetImage).run());
 
-    Instant buildTime =
-        Instant.parse(
-            new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run().trim());
-    Assert.assertTrue(buildTime.isAfter(before) || buildTime.equals(before));
-  }
-
-  @Test
-  public void testExecute_jibSkip() throws VerificationException, IOException {
-    SkippedGoalVerifier.verifyJibSkip(skippedTestProject, BuildTarMojo.GOAL_NAME);
-  }
-
-  @Test
-  public void testExecute_jibContainerizeSkips() throws VerificationException, IOException {
-    SkippedGoalVerifier.verifyJibContainerizeSkips(simpleTestProject, BuildDockerMojo.GOAL_NAME);
-  }
-
-  @Test
-  public void testExecute_jibRequireVersion_ok() throws VerificationException, IOException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
-
-    Instant before = Instant.now();
-    Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-    // this plugin should match 1.0
-    verifier.setSystemProperty("jib.requiredVersion", "1.0");
-    verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-    verifier.executeGoals(Arrays.asList("package", "jib:buildTar"));
-    verifier.verifyErrorFreeLog();
-  }
-
-  @Test
-  public void testExecute_jibRequireVersion_fail() throws IOException {
-    String targetImage = "simpleimage:maven" + System.nanoTime();
-
-    try {
-      Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
-      verifier.setSystemProperty("jib.requiredVersion", "[,1.0]");
-      verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
-      verifier.executeGoals(Arrays.asList("package", "jib:buildTar"));
-      Assert.fail();
-    } catch (VerificationException ex) {
-      Assert.assertThat(
-          ex.getMessage(), CoreMatchers.containsString("but is required to be [,1.0]"));
+        Instant buildTime =
+                Instant.parse(
+                        new Command("docker", "inspect", "-f", "{{.Created}}", targetImage).run()
+                                .trim());
+        Assert.assertTrue(buildTime.isAfter(before) || buildTime.equals(before));
     }
-  }
+
+    @Test
+    public void testExecute_jibSkip() throws VerificationException, IOException {
+        SkippedGoalVerifier.verifyJibSkip(skippedTestProject, BuildTarMojo.GOAL_NAME);
+    }
+
+    @Test
+    public void testExecute_jibContainerizeSkips() throws VerificationException, IOException {
+        SkippedGoalVerifier.verifyJibContainerizeSkips(simpleTestProject,
+                BuildDockerMojo.GOAL_NAME);
+    }
+
+    @Test
+    public void testExecute_jibRequireVersion_ok() throws VerificationException, IOException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+
+        Instant before = Instant.now();
+        Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+        // this plugin should match 1.0
+        verifier.setSystemProperty("jib.requiredVersion", "1.0");
+        verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+        verifier.executeGoals(Arrays.asList("package", "jib:buildTar"));
+        verifier.verifyErrorFreeLog();
+    }
+
+    @Test
+    public void testExecute_jibRequireVersion_fail() throws IOException {
+        String targetImage = "simpleimage:maven" + System.nanoTime();
+
+        try {
+            Verifier verifier = new Verifier(simpleTestProject.getProjectRoot().toString());
+            verifier.setSystemProperty("jib.requiredVersion", "[,1.0]");
+            verifier.setSystemProperty("_TARGET_IMAGE", targetImage);
+            verifier.executeGoals(Arrays.asList("package", "jib:buildTar"));
+            Assert.fail();
+        } catch (VerificationException ex) {
+            Assert.assertThat(
+                    ex.getMessage(), CoreMatchers.containsString("but is required to be [,1.0]"));
+        }
+    }
 }

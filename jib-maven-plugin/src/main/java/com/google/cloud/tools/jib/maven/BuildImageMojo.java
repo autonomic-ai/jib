@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -46,139 +63,147 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 
 /** Builds a container image. */
 @Mojo(
-    name = BuildImageMojo.GOAL_NAME,
-    requiresDependencyResolution = ResolutionScope.RUNTIME_PLUS_SYSTEM)
+        name = BuildImageMojo.GOAL_NAME,
+        requiresDependencyResolution = ResolutionScope.RUNTIME_PLUS_SYSTEM)
 public class BuildImageMojo extends JibPluginConfiguration {
 
-  @VisibleForTesting static final String GOAL_NAME = "build";
+    @VisibleForTesting
+    static final String GOAL_NAME = "build";
 
-  private static final String HELPFUL_SUGGESTIONS_PREFIX = "Build image failed";
+    private static final String HELPFUL_SUGGESTIONS_PREFIX = "Build image failed";
 
-  @Override
-  public void execute() throws MojoExecutionException, MojoFailureException {
-    checkJibVersion();
-    if (isSkipped()) {
-      getLog().info("Skipping containerization because jib-maven-plugin: skip = true");
-      return;
-    } else if (!isContainerizable()) {
-      getLog()
-          .info(
-              "Skipping containerization of this module (not specified in "
-                  + PropertyNames.CONTAINERIZE
-                  + ")");
-      return;
+    @Override
+    public void execute() throws MojoExecutionException, MojoFailureException {
+        checkJibVersion();
+        if (isSkipped()) {
+            getLog().info("Skipping containerization because jib-maven-plugin: skip = true");
+            return;
+        } else if (!isContainerizable()) {
+            getLog()
+                    .info(
+                            "Skipping containerization of this module (not specified in "
+                                    + PropertyNames.CONTAINERIZE
+                                    + ")");
+            return;
+        }
+        if ("pom".equals(getProject().getPackaging())) {
+            getLog().info("Skipping containerization because packaging is 'pom'...");
+            return;
+        }
+
+        // Validates 'format'.
+        if (Arrays.stream(ImageFormat.values())
+                .noneMatch(value -> value.name().equals(getFormat()))) {
+            throw new MojoFailureException(
+                    "<format> parameter is configured with value '"
+                            + getFormat()
+                            + "', but the only valid configuration options are '"
+                            + ImageFormat.Docker
+                            + "' and '"
+                            + ImageFormat.OCI
+                            + "'.");
+        }
+
+        // Parses 'to' into image reference.
+        if (Strings.isNullOrEmpty(getTargetImage())) {
+            throw new MojoFailureException(
+                    HelpfulSuggestions.forToNotConfigured(
+                            "Missing target image parameter",
+                            "<to><image>",
+                            "pom.xml",
+                            "mvn compile jib:build -Dimage=<your image name>"));
+        }
+
+        try {
+            RawConfiguration mavenRawConfiguration = new MavenRawConfiguration(this);
+            MavenProjectProperties projectProperties =
+                    MavenProjectProperties.getForProject(getProject(), getSession(), getLog());
+
+            PluginConfigurationProcessor pluginConfigurationProcessor =
+                    PluginConfigurationProcessor.processCommonConfigurationForRegistryImage(
+                            mavenRawConfiguration,
+                            new MavenSettingsServerCredentials(
+                                    getSession().getSettings(), getSettingsDecrypter()),
+                            projectProperties);
+            MavenSettingsProxyProvider.activateHttpAndHttpsProxies(
+                    getSession().getSettings(), getSettingsDecrypter());
+
+            ImageReference targetImageReference =
+                    pluginConfigurationProcessor.getTargetImageReference();
+            HelpfulSuggestions helpfulSuggestions =
+                    new MavenHelpfulSuggestionsBuilder(HELPFUL_SUGGESTIONS_PREFIX, this)
+                            .setBaseImageReference(
+                                    pluginConfigurationProcessor.getBaseImageReference())
+                            .setBaseImageHasConfiguredCredentials(
+                                    pluginConfigurationProcessor.isBaseImageCredentialPresent())
+                            .setTargetImageReference(targetImageReference)
+                            .setTargetImageHasConfiguredCredentials(
+                                    pluginConfigurationProcessor.isTargetImageCredentialPresent())
+                            .build();
+
+            Path buildOutput = Paths.get(getProject().getBuild().getDirectory());
+
+            try {
+                JibBuildRunner.forBuildImage(targetImageReference, getTargetImageAdditionalTags())
+                        .writeImageDigest(buildOutput.resolve("jib-image.digest"))
+                        .writeImageId(buildOutput.resolve("jib-image.id"))
+                        .build(
+                                pluginConfigurationProcessor.getJibContainerBuilder(),
+                                pluginConfigurationProcessor.getContainerizer(),
+                                projectProperties::log,
+                                helpfulSuggestions);
+
+            } finally {
+                // TODO: This should not be called on projectProperties.
+                projectProperties.waitForLoggingThread();
+                getLog().info("");
+            }
+
+        } catch (InvalidAppRootException ex) {
+            throw new MojoExecutionException(
+                    "<container><appRoot> is not an absolute Unix-style path: "
+                            + ex.getInvalidPathValue(),
+                    ex);
+
+        } catch (InvalidContainerizingModeException ex) {
+            throw new MojoExecutionException(
+                    "invalid value for <containerizingMode>: " + ex.getInvalidContainerizingMode(),
+                    ex);
+
+        } catch (InvalidWorkingDirectoryException ex) {
+            throw new MojoExecutionException(
+                    "<container><workingDirectory> is not an absolute Unix-style path: "
+                            + ex.getInvalidPathValue(),
+                    ex);
+
+        } catch (InvalidContainerVolumeException ex) {
+            throw new MojoExecutionException(
+                    "<container><volumes> is not an absolute Unix-style path: "
+                            + ex.getInvalidVolume(),
+                    ex);
+
+        } catch (InvalidFilesModificationTimeException ex) {
+            throw new MojoExecutionException(
+                    "<container><filesModificationTime> should be an ISO 8601 date-time (see "
+                            + "DateTimeFormatter.ISO_DATE_TIME) or special keyword \"EPOCH_PLUS_SECOND\": "
+                            + ex.getInvalidFilesModificationTime(),
+                    ex);
+
+        } catch (IncompatibleBaseImageJavaVersionException ex) {
+            throw new MojoExecutionException(
+                    HelpfulSuggestions.forIncompatibleBaseImageJavaVesionForMaven(
+                            ex.getBaseImageMajorJavaVersion(), ex.getProjectMajorJavaVersion()),
+                    ex);
+
+        } catch (InvalidImageReferenceException ex) {
+            throw new MojoExecutionException(
+                    HelpfulSuggestions.forInvalidImageReference(ex.getInvalidReference()), ex);
+
+        } catch (IOException | CacheDirectoryCreationException | MainClassInferenceException ex) {
+            throw new MojoExecutionException(ex.getMessage(), ex);
+
+        } catch (BuildStepsExecutionException ex) {
+            throw new MojoExecutionException(ex.getMessage(), ex.getCause());
+        }
     }
-    if ("pom".equals(getProject().getPackaging())) {
-      getLog().info("Skipping containerization because packaging is 'pom'...");
-      return;
-    }
-
-    // Validates 'format'.
-    if (Arrays.stream(ImageFormat.values()).noneMatch(value -> value.name().equals(getFormat()))) {
-      throw new MojoFailureException(
-          "<format> parameter is configured with value '"
-              + getFormat()
-              + "', but the only valid configuration options are '"
-              + ImageFormat.Docker
-              + "' and '"
-              + ImageFormat.OCI
-              + "'.");
-    }
-
-    // Parses 'to' into image reference.
-    if (Strings.isNullOrEmpty(getTargetImage())) {
-      throw new MojoFailureException(
-          HelpfulSuggestions.forToNotConfigured(
-              "Missing target image parameter",
-              "<to><image>",
-              "pom.xml",
-              "mvn compile jib:build -Dimage=<your image name>"));
-    }
-
-    try {
-      RawConfiguration mavenRawConfiguration = new MavenRawConfiguration(this);
-      MavenProjectProperties projectProperties =
-          MavenProjectProperties.getForProject(getProject(), getSession(), getLog());
-
-      PluginConfigurationProcessor pluginConfigurationProcessor =
-          PluginConfigurationProcessor.processCommonConfigurationForRegistryImage(
-              mavenRawConfiguration,
-              new MavenSettingsServerCredentials(
-                  getSession().getSettings(), getSettingsDecrypter()),
-              projectProperties);
-      MavenSettingsProxyProvider.activateHttpAndHttpsProxies(
-          getSession().getSettings(), getSettingsDecrypter());
-
-      ImageReference targetImageReference = pluginConfigurationProcessor.getTargetImageReference();
-      HelpfulSuggestions helpfulSuggestions =
-          new MavenHelpfulSuggestionsBuilder(HELPFUL_SUGGESTIONS_PREFIX, this)
-              .setBaseImageReference(pluginConfigurationProcessor.getBaseImageReference())
-              .setBaseImageHasConfiguredCredentials(
-                  pluginConfigurationProcessor.isBaseImageCredentialPresent())
-              .setTargetImageReference(targetImageReference)
-              .setTargetImageHasConfiguredCredentials(
-                  pluginConfigurationProcessor.isTargetImageCredentialPresent())
-              .build();
-
-      Path buildOutput = Paths.get(getProject().getBuild().getDirectory());
-
-      try {
-        JibBuildRunner.forBuildImage(targetImageReference, getTargetImageAdditionalTags())
-            .writeImageDigest(buildOutput.resolve("jib-image.digest"))
-            .writeImageId(buildOutput.resolve("jib-image.id"))
-            .build(
-                pluginConfigurationProcessor.getJibContainerBuilder(),
-                pluginConfigurationProcessor.getContainerizer(),
-                projectProperties::log,
-                helpfulSuggestions);
-
-      } finally {
-        // TODO: This should not be called on projectProperties.
-        projectProperties.waitForLoggingThread();
-        getLog().info("");
-      }
-
-    } catch (InvalidAppRootException ex) {
-      throw new MojoExecutionException(
-          "<container><appRoot> is not an absolute Unix-style path: " + ex.getInvalidPathValue(),
-          ex);
-
-    } catch (InvalidContainerizingModeException ex) {
-      throw new MojoExecutionException(
-          "invalid value for <containerizingMode>: " + ex.getInvalidContainerizingMode(), ex);
-
-    } catch (InvalidWorkingDirectoryException ex) {
-      throw new MojoExecutionException(
-          "<container><workingDirectory> is not an absolute Unix-style path: "
-              + ex.getInvalidPathValue(),
-          ex);
-
-    } catch (InvalidContainerVolumeException ex) {
-      throw new MojoExecutionException(
-          "<container><volumes> is not an absolute Unix-style path: " + ex.getInvalidVolume(), ex);
-
-    } catch (InvalidFilesModificationTimeException ex) {
-      throw new MojoExecutionException(
-          "<container><filesModificationTime> should be an ISO 8601 date-time (see "
-              + "DateTimeFormatter.ISO_DATE_TIME) or special keyword \"EPOCH_PLUS_SECOND\": "
-              + ex.getInvalidFilesModificationTime(),
-          ex);
-
-    } catch (IncompatibleBaseImageJavaVersionException ex) {
-      throw new MojoExecutionException(
-          HelpfulSuggestions.forIncompatibleBaseImageJavaVesionForMaven(
-              ex.getBaseImageMajorJavaVersion(), ex.getProjectMajorJavaVersion()),
-          ex);
-
-    } catch (InvalidImageReferenceException ex) {
-      throw new MojoExecutionException(
-          HelpfulSuggestions.forInvalidImageReference(ex.getInvalidReference()), ex);
-
-    } catch (IOException | CacheDirectoryCreationException | MainClassInferenceException ex) {
-      throw new MojoExecutionException(ex.getMessage(), ex);
-
-    } catch (BuildStepsExecutionException ex) {
-      throw new MojoExecutionException(ex.getMessage(), ex.getCause());
-    }
-  }
 }

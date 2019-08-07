@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -33,81 +50,82 @@ import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 /** Propagates proxy configuration from Maven settings to system properties. */
 class MavenSettingsProxyProvider {
 
-  private static final ImmutableList<String> PROXY_PROPERTIES =
-      ImmutableList.of("proxyHost", "proxyPort", "proxyUser", "proxyPassword");
+    private static final ImmutableList<String> PROXY_PROPERTIES =
+            ImmutableList.of("proxyHost", "proxyPort", "proxyUser", "proxyPassword");
 
-  /**
-   * Initializes proxy settings based on Maven settings if they are not already set by the user
-   * directly.
-   *
-   * @param settings Maven settings
-   */
-  static void activateHttpAndHttpsProxies(Settings settings, SettingsDecrypter decrypter)
-      throws MojoExecutionException {
-    List<Proxy> proxies = new ArrayList<>(2);
-    for (String protocol : ImmutableList.of("http", "https")) {
-      if (areProxyPropertiesSet(protocol)) {
-        continue;
-      }
-      settings
-          .getProxies()
-          .stream()
-          .filter(Proxy::isActive)
-          .filter(proxy -> protocol.equals(proxy.getProtocol()))
-          .findFirst()
-          .ifPresent(proxies::add);
+    /**
+     * Initializes proxy settings based on Maven settings if they are not already set by the user
+     * directly.
+     *
+     * @param settings Maven settings
+     */
+    static void activateHttpAndHttpsProxies(Settings settings, SettingsDecrypter decrypter)
+            throws MojoExecutionException {
+        List<Proxy> proxies = new ArrayList<>(2);
+        for (String protocol : ImmutableList.of("http", "https")) {
+            if (areProxyPropertiesSet(protocol)) {
+                continue;
+            }
+            settings
+                    .getProxies()
+                    .stream()
+                    .filter(Proxy::isActive)
+                    .filter(proxy -> protocol.equals(proxy.getProtocol()))
+                    .findFirst()
+                    .ifPresent(proxies::add);
+        }
+
+        if (proxies.size() == 0) {
+            return;
+        }
+
+        SettingsDecryptionRequest request =
+                new DefaultSettingsDecryptionRequest().setProxies(proxies);
+        SettingsDecryptionResult result = decrypter.decrypt(request);
+
+        for (SettingsProblem problem : result.getProblems()) {
+            if (problem.getSeverity() == SettingsProblem.Severity.ERROR
+                    || problem.getSeverity() == SettingsProblem.Severity.FATAL) {
+                throw new MojoExecutionException(
+                        "Unable to decrypt proxy info from settings.xml: " + problem);
+            }
+        }
+
+        result.getProxies().forEach(MavenSettingsProxyProvider::setProxyProperties);
     }
 
-    if (proxies.size() == 0) {
-      return;
+    /**
+     * Set proxy system properties based on Maven proxy configuration.
+     *
+     * @param proxy Maven proxy settings
+     */
+    @VisibleForTesting
+    static void setProxyProperties(Proxy proxy) {
+        String protocol = proxy.getProtocol();
+
+        setPropertySafe(protocol + ".proxyHost", proxy.getHost());
+        setPropertySafe(protocol + ".proxyPort", String.valueOf(proxy.getPort()));
+        setPropertySafe(protocol + ".proxyUser", proxy.getUsername());
+        setPropertySafe(protocol + ".proxyPassword", proxy.getPassword());
+        setPropertySafe("http.nonProxyHosts", proxy.getNonProxyHosts());
     }
 
-    SettingsDecryptionRequest request = new DefaultSettingsDecryptionRequest().setProxies(proxies);
-    SettingsDecryptionResult result = decrypter.decrypt(request);
-
-    for (SettingsProblem problem : result.getProblems()) {
-      if (problem.getSeverity() == SettingsProblem.Severity.ERROR
-          || problem.getSeverity() == SettingsProblem.Severity.FATAL) {
-        throw new MojoExecutionException(
-            "Unable to decrypt proxy info from settings.xml: " + problem);
-      }
+    private static void setPropertySafe(String property, @Nullable String value) {
+        if (value != null) {
+            System.setProperty(property, value);
+        }
     }
 
-    result.getProxies().forEach(MavenSettingsProxyProvider::setProxyProperties);
-  }
-
-  /**
-   * Set proxy system properties based on Maven proxy configuration.
-   *
-   * @param proxy Maven proxy settings
-   */
-  @VisibleForTesting
-  static void setProxyProperties(Proxy proxy) {
-    String protocol = proxy.getProtocol();
-
-    setPropertySafe(protocol + ".proxyHost", proxy.getHost());
-    setPropertySafe(protocol + ".proxyPort", String.valueOf(proxy.getPort()));
-    setPropertySafe(protocol + ".proxyUser", proxy.getUsername());
-    setPropertySafe(protocol + ".proxyPassword", proxy.getPassword());
-    setPropertySafe("http.nonProxyHosts", proxy.getNonProxyHosts());
-  }
-
-  private static void setPropertySafe(String property, @Nullable String value) {
-    if (value != null) {
-      System.setProperty(property, value);
+    /**
+     * Check if any proxy system properties are already set for a given protocol. Note, <code>
+     * nonProxyHosts</code> is excluded as it can only be set with <code>http</code>.
+     *
+     * @param protocol protocol
+     */
+    @VisibleForTesting
+    static boolean areProxyPropertiesSet(String protocol) {
+        return PROXY_PROPERTIES
+                .stream()
+                .anyMatch(property -> System.getProperty(protocol + "." + property) != null);
     }
-  }
-
-  /**
-   * Check if any proxy system properties are already set for a given protocol. Note, <code>
-   * nonProxyHosts</code> is excluded as it can only be set with <code>http</code>.
-   *
-   * @param protocol protocol
-   */
-  @VisibleForTesting
-  static boolean areProxyPropertiesSet(String protocol) {
-    return PROXY_PROPERTIES
-        .stream()
-        .anyMatch(property -> System.getProperty(protocol + "." + property) != null);
-  }
 }

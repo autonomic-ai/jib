@@ -1,16 +1,33 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * The Apache License, Version 2.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
 /*
  * Copyright 2018 Google LLC.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
@@ -29,83 +46,84 @@ import org.apache.maven.settings.crypto.SettingsDecryptionRequest;
 import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 
 /**
- * Retrieves credentials for servers defined in <a
- * href="https://maven.apache.org/settings.html">Maven settings</a>.
+ * Retrieves credentials for servers defined in
+ * <a href="https://maven.apache.org/settings.html">Maven settings</a>.
  */
 class MavenSettingsServerCredentials implements InferredAuthProvider {
 
-  static final String CREDENTIAL_SOURCE = "Maven settings";
+    static final String CREDENTIAL_SOURCE = "Maven settings";
 
-  private final Settings settings;
-  private final SettingsDecrypter decrypter;
+    private final Settings settings;
+    private final SettingsDecrypter decrypter;
 
-  /**
-   * Create new instance.
-   *
-   * @param settings decrypted Maven settings
-   */
-  MavenSettingsServerCredentials(Settings settings, SettingsDecrypter decrypter) {
-    this.settings = settings;
-    this.decrypter = decrypter;
-  }
-
-  /**
-   * Retrieves credentials for {@code registry} from Maven settings.
-   *
-   * @param registry the registry
-   * @return the auth info for the registry, or {@link Optional#empty} if none could be retrieved
-   */
-  @Override
-  public Optional<AuthProperty> inferAuth(String registry) throws InferredAuthException {
-
-    Server server = settings.getServer(registry);
-    if (server == null) {
-      return Optional.empty();
+    /**
+     * Create new instance.
+     *
+     * @param settings decrypted Maven settings
+     */
+    MavenSettingsServerCredentials(Settings settings, SettingsDecrypter decrypter) {
+        this.settings = settings;
+        this.decrypter = decrypter;
     }
 
-    SettingsDecryptionRequest request = new DefaultSettingsDecryptionRequest(server);
-    SettingsDecryptionResult result = decrypter.decrypt(request);
-    // Un-encrypted passwords are passed through, so a problem indicates a real issue.
-    // If there are any ERROR or FATAL problems reported, then decryption failed.
-    for (SettingsProblem problem : result.getProblems()) {
-      if (problem.getSeverity() == SettingsProblem.Severity.ERROR
-          || problem.getSeverity() == SettingsProblem.Severity.FATAL) {
-        throw new InferredAuthException(
-            "Unable to decrypt server(" + registry + ") info from settings.xml: " + problem);
-      }
+    /**
+     * Retrieves credentials for {@code registry} from Maven settings.
+     *
+     * @param registry the registry
+     * @return the auth info for the registry, or {@link Optional#empty} if none could be retrieved
+     */
+    @Override
+    public Optional<AuthProperty> inferAuth(String registry) throws InferredAuthException {
+
+        Server server = settings.getServer(registry);
+        if (server == null) {
+            return Optional.empty();
+        }
+
+        SettingsDecryptionRequest request = new DefaultSettingsDecryptionRequest(server);
+        SettingsDecryptionResult result = decrypter.decrypt(request);
+        // Un-encrypted passwords are passed through, so a problem indicates a real issue.
+        // If there are any ERROR or FATAL problems reported, then decryption failed.
+        for (SettingsProblem problem : result.getProblems()) {
+            if (problem.getSeverity() == SettingsProblem.Severity.ERROR
+                    || problem.getSeverity() == SettingsProblem.Severity.FATAL) {
+                throw new InferredAuthException(
+                        "Unable to decrypt server(" + registry + ") info from settings.xml: "
+                                + problem);
+            }
+        }
+        Server resultServer = result.getServer();
+
+        String username = resultServer.getUsername();
+        String password = resultServer.getPassword();
+
+        return Optional.of(
+                new AuthProperty() {
+
+                    @Override
+                    public String getUsername() {
+                        return username;
+                    }
+
+                    @Override
+                    public String getPassword() {
+                        return password;
+                    }
+
+                    @Override
+                    public String getAuthDescriptor() {
+                        return CREDENTIAL_SOURCE;
+                    }
+
+                    @Override
+                    public String getUsernameDescriptor() {
+                        return CREDENTIAL_SOURCE;
+                    }
+
+                    @Override
+                    public String getPasswordDescriptor() {
+                        return CREDENTIAL_SOURCE;
+                    }
+                });
     }
-    Server resultServer = result.getServer();
-
-    String username = resultServer.getUsername();
-    String password = resultServer.getPassword();
-
-    return Optional.of(
-        new AuthProperty() {
-
-          @Override
-          public String getUsername() {
-            return username;
-          }
-
-          @Override
-          public String getPassword() {
-            return password;
-          }
-
-          @Override
-          public String getAuthDescriptor() {
-            return CREDENTIAL_SOURCE;
-          }
-
-          @Override
-          public String getUsernameDescriptor() {
-            return CREDENTIAL_SOURCE;
-          }
-
-          @Override
-          public String getPasswordDescriptor() {
-            return CREDENTIAL_SOURCE;
-          }
-        });
-  }
 }
