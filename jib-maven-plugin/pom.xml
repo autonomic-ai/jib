@@ -266,8 +266,8 @@
             <configuration>
               <publisher>
                 <contextUrl>https://autonomic.jfrog.io/autonomic</contextUrl>
-                <repoKey>plugins-release-dev</repoKey>
-                <snapshotRepoKey>plugins-snapshot-dev</snapshotRepoKey>
+                <repoKey>plugins-release</repoKey>
+                <snapshotRepoKey>plugins-snapshot</snapshotRepoKey>
                 <username>${env.ARTIFACT_REPO_USERNAME}</username>
                 <password>${env.ARTIFACT_REPO_PASSWORD}</password>
                 <excludePatterns>*-exec.jar</excludePatterns>
