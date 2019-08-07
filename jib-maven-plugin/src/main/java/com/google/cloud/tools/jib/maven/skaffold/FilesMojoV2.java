@@ -63,6 +63,7 @@ import org.eclipse.aether.graph.DependencyFilter;
     name = FilesMojoV2.GOAL_NAME,
     requiresDependencyCollection = ResolutionScope.COMPILE_PLUS_RUNTIME,
     aggregator = true)
+@Ignore
 public class FilesMojoV2 extends SkaffoldBindingMojo {
 
   @VisibleForTesting static final String GOAL_NAME = "_skaffold-files-v2";

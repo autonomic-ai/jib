@@ -30,6 +30,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
  * <p>Expected use: {@code ./mvnw jib:_skaffold-init -q}
  */
 @Mojo(name = SkaffoldInitMojo.GOAL_NAME, requiresDependencyCollection = ResolutionScope.NONE)
+@Ignore
 public class SkaffoldInitMojo extends JibPluginConfiguration {
 
   @VisibleForTesting static final String GOAL_NAME = "_skaffold-init";
