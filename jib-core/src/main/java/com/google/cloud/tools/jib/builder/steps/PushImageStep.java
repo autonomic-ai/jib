@@ -34,7 +34,11 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import net.jodah.failsafe.Failsafe;
+import net.jodah.failsafe.FailsafeException;
+import net.jodah.failsafe.RetryPolicy;
 
 /**
  * Pushes a manifest for a tag. Returns the manifest digest ("image digest") and the container
@@ -77,7 +81,8 @@ class PushImageStep implements Callable<BuildResult> {
                       manifestTemplate,
                       tag,
                       manifestDigest,
-                      containerConfigurationDigestAndSize.getDigest()))
+                      containerConfigurationDigestAndSize.getDigest(),
+                      new RetryConfig(5, 1, 60, 2.0)))
           .collect(ImmutableList.toImmutableList());
     }
   }
@@ -90,6 +95,7 @@ class PushImageStep implements Callable<BuildResult> {
   private final String tag;
   private final DescriptorDigest imageDigest;
   private final DescriptorDigest imageId;
+  private final RetryConfig retryConfig;
 
   PushImageStep(
       BuildConfiguration buildConfiguration,
@@ -98,7 +104,8 @@ class PushImageStep implements Callable<BuildResult> {
       BuildableManifestTemplate manifestTemplate,
       String tag,
       DescriptorDigest imageDigest,
-      DescriptorDigest imageId) {
+      DescriptorDigest imageId,
+      RetryConfig retryConfig) {
     this.buildConfiguration = buildConfiguration;
     this.progressEventDispatcherFactory = progressEventDispatcherFactory;
     this.pushAuthorization = pushAuthorization;
@@ -106,6 +113,7 @@ class PushImageStep implements Callable<BuildResult> {
     this.tag = tag;
     this.imageDigest = imageDigest;
     this.imageId = imageId;
+    this.retryConfig = retryConfig;
   }
 
   @Override
@@ -116,14 +124,40 @@ class PushImageStep implements Callable<BuildResult> {
             progressEventDispatcherFactory.create("pushing manifest for " + tag, 1)) {
       eventHandlers.dispatch(LogEvent.info("Pushing manifest for " + tag + "..."));
 
-      RegistryClient registryClient =
-          buildConfiguration
-              .newTargetImageRegistryClientFactory()
-              .setAuthorization(pushAuthorization)
-              .newRegistryClient();
+      pushManifestWithRetries();
 
-      registryClient.pushManifest(manifestTemplate, tag);
       return new BuildResult(imageDigest, imageId);
+    }
+  }
+
+  private void pushManifestWithRetries() throws IOException, RegistryException {
+    RegistryClient registryClient =
+        buildConfiguration
+            .newTargetImageRegistryClientFactory()
+            .setAuthorization(pushAuthorization)
+            .newRegistryClient();
+
+    RetryPolicy retryPolicy =
+        new RetryPolicy()
+            .withMaxRetries(retryConfig.getMaxRetries())
+            .withBackoff(
+                retryConfig.getBackoffDelay(),
+                retryConfig.getMaxDelay(),
+                TimeUnit.SECONDS,
+                retryConfig.getDelayFactor())
+            .retryOn(RegistryException.class);
+
+    try {
+      Failsafe.with(retryPolicy)
+          .onRetry(
+              (result, failure, context) -> LogEvent.warn("Retrying manifest push: " + failure))
+          .onFailure(
+              (result, failure, context) -> LogEvent.error("Unable to push manifest: " + failure))
+          .run(() -> registryClient.pushManifest(manifestTemplate, tag));
+    } catch (FailsafeException e) {
+      if (e.getCause() instanceof RegistryException) {
+        throw (RegistryException) e.getCause();
+      }
     }
   }
 }
