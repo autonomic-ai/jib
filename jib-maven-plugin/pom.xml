@@ -268,8 +268,8 @@
                 <contextUrl>https://autonomic.jfrog.io/autonomic</contextUrl>
                 <repoKey>plugins-release-local</repoKey>
                 <snapshotRepoKey>plugins-snapshot-local</snapshotRepoKey>
-                <username>${artifactory.username}</username>
-                <password>${artifactory.password}</password>
+                <username>${env.ARTIFACT_REPO_USERNAME}</username>
+                <password>${env.ARTIFACTORY_PASSWORD}</password>
               </publisher>
               <deployProperties>
                 <groupId>${project.groupId}</groupId>
