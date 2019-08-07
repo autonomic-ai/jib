@@ -31,8 +31,10 @@ import org.apache.maven.it.VerificationException;
 import org.apache.maven.it.Verifier;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore
 /** Tests for {@link FilesMojo}. */
 public class FilesMojoTest {
 
@@ -118,6 +120,7 @@ public class FilesMojoTest {
   }
 
   @Test
+  @Ignore
   public void testFilesMojo_multiModuleComplexService() throws VerificationException, IOException {
     Path projectRoot = multiTestProject.getProjectRoot();
     Path complexServiceRoot = projectRoot.resolve("complex-service");

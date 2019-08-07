@@ -24,9 +24,11 @@ import org.apache.maven.it.VerificationException;
 import org.apache.maven.it.Verifier;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Tests for {@link CheckJibVersionMojo}. */
+@Ignore
 public class CheckJibVersionMojoTest {
   @ClassRule public static final TestPlugin testPlugin = new TestPlugin();
 
