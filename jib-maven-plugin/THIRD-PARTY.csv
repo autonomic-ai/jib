@@ -26,6 +26,7 @@
 "junit","junit","4.12","Eclipse Public License 1.0"
 "net.bytebuddy","byte-buddy","1.9.3","Apache License, Version 2.0"
 "net.bytebuddy","byte-buddy-agent","1.9.3","Apache License, Version 2.0"
+"net.jodah","failsafe","1.1.0","Apache License, Version 2.0"
 "org.apache.commons","commons-compress","1.18","Apache License, Version 2.0"
 "org.apache.commons","commons-lang3","3.5","Apache License, Version 2.0"
 "org.apache.httpcomponents","httpclient","4.5.9","Apache License, Version 2.0"
